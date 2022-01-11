@@ -10,6 +10,7 @@ from fastapi_crudrouter import SQLAlchemyCRUDRouter
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Table
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session, backref, relation
 from starlette import status
+from sqlalchemy.orm.exc import NoResultFound
 
 app = FastAPI(
     title="FoldersApiHourOne1",
@@ -108,8 +109,6 @@ class Folder(BaseModel):
 class FolderCreate(BaseModel):
     parent_folder: Optional[int] = None
     name: str
-    projects: Optional[List[int]] = Field(default=[])
-    sub_folders: Optional[List['FolderCreate']] = []
 
 
 class Project(BaseModel):
@@ -121,13 +120,6 @@ class Project(BaseModel):
         orm_mode = True
 
 
-class FolderUpdate(BaseModel):
-    parent_folder: Optional[int] = Field(default=None)
-    projects: Optional[List[int]] = Field(default=[])
-    sub_folders: Optional[List[int]] = Field(default=[])
-    name: str
-
-
 class ProjectCreate(BaseModel):
     name: str
 
@@ -135,10 +127,17 @@ class ProjectCreate(BaseModel):
         orm_mode = True
 
 
+class ProjectUpdate(BaseModel):
+    parent_folder: Optional[int] = Field(alias="parent_folder_id")
+    name: str
+
+    class Config:
+        orm_mode = True
+
 
 folders_router = SQLAlchemyCRUDRouter(
     schema=Folder,
-    update_schema=FolderUpdate,
+    update_schema=FolderCreate,
     create_schema=FolderCreate,
     db_model=FolderModel,
     db=get_db,
@@ -148,13 +147,33 @@ folders_router = SQLAlchemyCRUDRouter(
 )
 
 
+@folders_router.put("/{item_id}", response_model=Folder)
+def update_folder(item_id: int, folder_request: FolderCreate, db: Session = Depends(get_db)):
+    folder_info = db.query(FolderModel).get(item_id)
+    if folder_info is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
+
+    folder_info.name = folder_request.name
+    folder_info.parent_folder= folder_request.parent_folder
+
+    db.commit()
+    db.refresh(folder_info)
+
+    return folder_info
+
+
 @folders_router.delete('/{item_id}', responses={status.HTTP_204_NO_CONTENT: {"model": None}})
 def delete_folder(item_id: int, db: Session = Depends(get_db)):
     folder_info = db.query(FolderModel).get(item_id)
     if folder_info is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
 
-    db.query(ProjectModel).filter_by(parent_folder_id=item_id).delete(synchronize_session=False)
+    try:
+        project_info = db.query(ProjectModel).filter_by(parent_folder_id=item_id)
+    except NoResultFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    project_info.delete(synchronize_session=False)
     db.delete(folder_info)
     db.commit()
 
@@ -210,7 +229,7 @@ def get_project_from_folder(
 
 @folders_router.put('/{item_id}/projects/{project_id}', response_model=Project)
 def update_project_from_folder(
-        project_request: ProjectCreate,
+        project_request: ProjectUpdate,
         project_id: int,
         item_id: int,
         db: Session = Depends(get_db)
@@ -219,14 +238,21 @@ def update_project_from_folder(
     if folder_info is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Folder not found")
 
-    project_info = db.query(ProjectModel).filter_by(parent_folder_id=item_id, id=project_id)
-    if project_info.one() is None:
+    try:
+        project_info = db.query(ProjectModel).filter_by(parent_folder_id=item_id, id=project_id).one()
+    except NoResultFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    project_info.update({"name": project_request.name})
-    db.commit()
-    db.refresh(project_info.one())
 
-    return project_info.one()
+
+    if project_request.name is not None:
+        project_info.name = project_request.name
+    if project_request.parent_folder is not None:
+        project_info.parent_folder_id = project_request.parent_folder
+
+    db.commit()
+    db.refresh(project_info)
+
+    return project_info
 
 
 app.include_router(folders_router)
