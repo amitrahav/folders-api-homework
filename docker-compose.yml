@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    ports:
+      - "80:80"
+    restart: always
+    environment:
+      DB_USER: "root"
+      DB_HOST: "db"
+      DB_NAME: "folders"
+      DB_PASS: "example"
+    volumes:
+      - ./main.py:/code/main.py
+
+  db:
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "example"
+      MYSQL_ROOT_USER: "root"
+      MYSQL_DATABASE: "folders"
+      MYSQL_PASSWORD: "example"
+      MYSQL_USER: "example2"
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    ports:
+      - '3306:3306'
+

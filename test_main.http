@@ -1,0 +1,57 @@
+###
+# Test your FastAPI endpoints
+
+GET http://127.0.0.1:00/folders
+Accept: application/json
+
+### Send POST request with json body
+POST http://localhost:80/folders
+Content-Type: application/json
+
+{
+  "id": 0,
+  "name": "first",
+  "parent_folder": null,
+  "projects": [],
+  "folders": []
+}
+
+### Should return 200
+GET http://localhost:80/folders/0
+Accept: application/json
+
+### Should return 204
+DELETE http://localhost:80/folders/0
+Accept: application/json
+
+### Should return 404
+GET http://localhost:80/folders/0
+Accept: application/json
+
+### Send POST request with json body
+POST http://localhost:80/folders
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "first",
+  "parent_folder": null,
+  "projects": [],
+  "folders": []
+}
+
+### Send PUT request with json body
+PUT http://localhost:80/folders/1
+Content-Type: application/json
+
+{
+  "id": 1,
+  "name": "first!",
+  "parent_folder": null,
+  "projects": [],
+  "folders": []
+}
+
+### Should return 200
+GET http://localhost:80/folders/1
+Accept: application/json
