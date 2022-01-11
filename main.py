@@ -95,7 +95,7 @@ class SubFolder(BaseModel):
 
 
 class Folder(BaseModel):
-    parent_folder: Optional[int] = Field(default=None, alias="parent_folder_id")
+    parent_folder: Optional[int] = Field(default=None, alias="parent_folder")
     id: int
     name: str
     projects: Optional[List[ProjectNoParent]] = Field(default=[])
@@ -113,7 +113,7 @@ class FolderCreate(BaseModel):
 
 
 class Project(BaseModel):
-    parent_folder: Optional[int] = Field(alias="parent_folder_id")
+    parent_folder: Optional[int] = Field(alias="parent_folder")
     id: int
     name: str
 
