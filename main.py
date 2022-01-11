@@ -113,7 +113,7 @@ class FolderCreate(BaseModel):
 
 
 class Project(BaseModel):
-    parent_folder: Optional[int] = Field(alias="parent_folder")
+    parent_folder: Optional[int] = Field(alias="parent_folder_id")
     id: int
     name: str
 
